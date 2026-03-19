@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Image Converter</title>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* HEADER */
+header {
+  padding: 20px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(90deg, #00d4ff, #ff00c8);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* CONTAINER */
+.container {
+  width: 95%;
+  max-width: 1100px;
+  margin: 20px auto;
+}
+
+/* CARD */
+.card {
+  background: rgba(255,255,255,0.1);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+/* UPLOAD */
+.upload-box {
+  border: 2px dashed #00d4ff;
+  padding: 30px;
+  text-align: center;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.upload-box:hover {
+  background: rgba(0,212,255,0.1);
+}
+
+/* PREVIEW */
+.preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.preview img {
+  width: 120px;
+  border-radius: 10px;
+}
+
+/* BUTTON */
+button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 30px;
+  background: #00d4ff;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  transform: scale(1.1);
+}
+
+/* SELECT */
+select {
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  margin-top: 10px;
+}
+
+/* RESPONSIVE */
+@media(max-width: 768px) {
+  h1 { font-size: 1.8rem; }
+  .preview img { width: 80px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Ultimate Image Converter</h1>
+</header>
+
+<div class="container">
+
+  <!-- IMAGE CONVERTER -->
+  <div class="card">
+    <h2>🖼 Image Converter</h2>
+
+    <div class="upload-box" onclick="imageInput.click()">
+      Click or Drag Images Here
+      <input type="file" id="imageInput" multiple hidden accept="image/*">
+    </div>
+
+    <select id="format">
+      <option value="image/png">PNG</option>
+      <option value="image/jpeg">JPG</option>
+      <option value="image/webp">WEBP</option>
+    </select>
+
+    <div class="preview" id="preview"></div>
+
+    <button onclick="convertImages()">Convert & Download</button>
+  </div>
+
+  <!-- PDF TO IMAGE -->
+  <div class="card">
+    <h2>📄 PDF → Images</h2>
+
+    <input type="file" id="pdfInput" accept="application/pdf">
+
+    <div class="preview" id="pdfPreview"></div>
+
+    <button onclick="convertPDF()">Convert PDF</button>
+  </div>
+
+  <!-- IMAGE TO PDF -->
+  <div class="card">
+    <h2>📑 Image → PDF</h2>
+
+    <input type="file" id="imgToPdfInput" multiple accept="image/*">
+
+    <button onclick="imagesToPDF()">Create PDF</button>
+  </div>
+
+</div>
+
+<script>
+let images = [];
+
+/* IMAGE PREVIEW */
+document.getElementById("imageInput").addEventListener("change", function(e) {
+  images = Array.from(e.target.files);
+  const preview = document.getElementById("preview");
+  preview.innerHTML = "";
+
+  images.forEach(file => {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    preview.appendChild(img);
+  });
+});
+
+/* IMAGE CONVERT */
+function convertImages() {
+  const format = document.getElementById("format").value;
+
+  images.forEach(file => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      const link = document.createElement("a");
+      link.download = "converted";
+      link.href = canvas.toDataURL(format);
+      link.click();
+    };
+  });
+}
+
+/* PDF TO IMAGE */
+async function convertPDF() {
+  const file = document.getElementById("pdfInput").files[0];
+  const preview = document.getElementById("pdfPreview");
+  preview.innerHTML = "";
+
+  const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const img = document.createElement("img");
+    img.src = canvas.toDataURL();
+    preview.appendChild(img);
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = "page_" + i;
+    link.click();
+  }
+}
+
+/* IMAGE TO PDF */
+function imagesToPDF() {
+  const { jsPDF } = window.jspdf;
+  const files = document.getElementById("imgToPdfInput").files;
+
+  const pdf = new jsPDF();
+
+  Array.from(files).forEach((file, index) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = () => {
+      const width = pdf.internal.pageSize.getWidth();
+      const height = (img.height * width) / img.width;
+
+      if (index !== 0) pdf.addPage();
+      pdf.addImage(img, "JPEG", 0, 0, width, height);
+
+      if (index === files.length - 1) {
+        pdf.save("converted.pdf");
+      }
+    };
+  });
+}
+</script>
+
+</body>
+</html>
